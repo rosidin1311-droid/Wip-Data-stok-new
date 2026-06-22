@@ -7,9 +7,21 @@ interface DashboardViewProps {
   records: ProductionRecord[];
   onAddRecord: (record: Omit<ProductionRecord, 'id' | 'timestamp'>) => void;
   onNavigateToInput?: () => void;
+  customers: string[];
+  models: string[];
+  onAddCustomer: (name: string) => void;
+  onAddModel: (name: string) => void;
 }
 
-export default function DashboardView({ records, onAddRecord, onNavigateToInput }: DashboardViewProps) {
+export default function DashboardView({ 
+  records, 
+  onAddRecord, 
+  onNavigateToInput,
+  customers,
+  models,
+  onAddCustomer,
+  onAddModel
+}: DashboardViewProps) {
   const [showInputForm, setShowInputForm] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
   // Compute counts
@@ -198,6 +210,10 @@ export default function DashboardView({ records, onAddRecord, onNavigateToInput 
               }}
               existingRecords={records}
               isInline={true}
+              customers={customers}
+              models={models}
+              onAddCustomer={onAddCustomer}
+              onAddModel={onAddModel}
             />
           </div>
         )}
@@ -321,6 +337,10 @@ export default function DashboardView({ records, onAddRecord, onNavigateToInput 
                   }}
                   existingRecords={records}
                   isInline={true}
+                  customers={customers}
+                  models={models}
+                  onAddCustomer={onAddCustomer}
+                  onAddModel={onAddModel}
                 />
               </div>
             </motion.div>

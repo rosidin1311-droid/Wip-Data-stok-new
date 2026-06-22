@@ -12,25 +12,33 @@ interface InputProduksiViewProps {
   onAddRecord: (record: Omit<ProductionRecord, 'id' | 'timestamp'>) => void;
   existingRecords: ProductionRecord[];
   isInline?: boolean;
+  customers?: string[];
+  models?: string[];
+  onAddCustomer?: (name: string) => void;
+  onAddModel?: (name: string) => void;
 }
 
-export default function InputProduksiView({ onAddRecord, existingRecords, isInline = false }: InputProduksiViewProps) {
+export default function InputProduksiView({ 
+  onAddRecord, 
+  existingRecords, 
+  isInline = false,
+  customers,
+  models,
+  onAddCustomer,
+  onAddModel
+}: InputProduksiViewProps) {
   // Extract unique previous entries for type-ahead suggestion boxes
-  const [customerSuggestions, setCustomerSuggestions] = useState<string[]>(INITIAL_CUSTOMERS);
-  const [modelSuggestions, setModelSuggestions] = useState<string[]>(INITIAL_MODELS);
+  const [customerSuggestions, setCustomerSuggestions] = useState<string[]>(customers || INITIAL_CUSTOMERS);
+  const [modelSuggestions, setModelSuggestions] = useState<string[]>(models || INITIAL_MODELS);
 
-  // Sync suggestions with dynamic historical inputs too
+  // Sync suggestions with dynamic master databases
   useEffect(() => {
-    const historicalCustomers = existingRecords.map(r => r.customer);
-    const historicalModels = existingRecords.map(r => r.model);
-    
-    // Combine defaults and history, get unique values
-    const uniqueCustomers = Array.from(new Set([...INITIAL_CUSTOMERS, ...historicalCustomers])).filter(Boolean);
-    const uniqueModels = Array.from(new Set([...INITIAL_MODELS, ...historicalModels])).filter(Boolean);
-    
-    setCustomerSuggestions(uniqueCustomers);
-    setModelSuggestions(uniqueModels);
-  }, [existingRecords]);
+    setCustomerSuggestions(customers || INITIAL_CUSTOMERS);
+  }, [customers]);
+
+  useEffect(() => {
+    setModelSuggestions(models || INITIAL_MODELS);
+  }, [models]);
 
   // Form states
   const [customer, setCustomer] = useState('');
@@ -173,6 +181,13 @@ export default function InputProduksiView({ onAddRecord, existingRecords, isInli
       shift,
       notes: notes.trim() || undefined
     });
+
+    if (onAddCustomer) {
+      onAddCustomer(customer.trim());
+    }
+    if (onAddModel) {
+      onAddModel(model.trim());
+    }
 
     showToast('Data produksi WIP disimpan ke laporan!', 'success');
 

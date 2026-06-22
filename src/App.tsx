@@ -9,7 +9,7 @@ import PengaturanView from './components/PengaturanView';
 import DataStockView from './components/DataStockView';
 import NeonLogo from './components/NeonLogo';
 import { ProductionRecord, AppSettings } from './types';
-import { INITIAL_RECORDS } from './initialData';
+import { INITIAL_RECORDS, INITIAL_CUSTOMERS, INITIAL_MODELS } from './initialData';
 
 export default function App() {
   // Initialize production records from localStorage, fallback to preset default values
@@ -23,6 +23,32 @@ export default function App() {
       }
     }
     return INITIAL_RECORDS;
+  });
+
+  // Initialize customizable customers list
+  const [customers, setCustomers] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wip_tracker_customers');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to parse customers master database:', err);
+      }
+    }
+    return INITIAL_CUSTOMERS;
+  });
+
+  // Initialize customizable models list
+  const [models, setModels] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wip_tracker_models');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to parse models master database:', err);
+      }
+    }
+    return INITIAL_MODELS;
   });
 
   // Initialize app settings from localStorage
@@ -49,6 +75,15 @@ export default function App() {
     localStorage.setItem('wip_tracker_records', JSON.stringify(records));
   }, [records]);
 
+  // Sync customizable data lists to localStorage
+  useEffect(() => {
+    localStorage.setItem('wip_tracker_customers', JSON.stringify(customers));
+  }, [customers]);
+
+  useEffect(() => {
+    localStorage.setItem('wip_tracker_models', JSON.stringify(models));
+  }, [models]);
+
   // Sync settings config to localStorage
   useEffect(() => {
     localStorage.setItem('wip_tracker_settings', JSON.stringify(settings));
@@ -63,6 +98,29 @@ export default function App() {
       root.classList.remove('dark');
     }
   }, [settings.theme]);
+
+  // Master List Modifiers
+  const handleAddCustomer = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !customers.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      setCustomers(prev => [...prev, trimmed]);
+    }
+  };
+
+  const handleDeleteCustomer = (name: string) => {
+    setCustomers(prev => prev.filter(c => c !== name));
+  };
+
+  const handleAddModel = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !models.some(m => m.toLowerCase() === trimmed.toLowerCase())) {
+      setModels(prev => [...prev, trimmed]);
+    }
+  };
+
+  const handleDeleteModel = (name: string) => {
+    setModels(prev => prev.filter(m => m !== name));
+  };
 
   // Command handlers
   const handleAddRecord = (newRec: Omit<ProductionRecord, 'id' | 'timestamp'>) => {
@@ -103,6 +161,10 @@ export default function App() {
             records={records} 
             onAddRecord={handleAddRecord}
             onNavigateToInput={() => setActiveTab('input')} 
+            customers={customers}
+            models={models}
+            onAddCustomer={handleAddCustomer}
+            onAddModel={handleAddModel}
           />
         );
       case 'wip':
@@ -114,6 +176,10 @@ export default function App() {
           <InputProduksiView 
             onAddRecord={handleAddRecord} 
             existingRecords={records} 
+            customers={customers}
+            models={models}
+            onAddCustomer={handleAddCustomer}
+            onAddModel={handleAddModel}
           />
         );
       case 'riwayat':
@@ -131,6 +197,14 @@ export default function App() {
             records={records}
             onImportRecords={handleImportRecords}
             onClearData={handleClearData}
+            customers={customers}
+            models={models}
+            onAddCustomer={handleAddCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+            onAddModel={handleAddModel}
+            onDeleteModel={handleDeleteModel}
+            onResetCustomers={() => setCustomers(INITIAL_CUSTOMERS)}
+            onResetModels={() => setModels(INITIAL_MODELS)}
           />
         );
       default:
@@ -139,6 +213,10 @@ export default function App() {
             records={records} 
             onAddRecord={handleAddRecord}
             onNavigateToInput={() => setActiveTab('input')} 
+            customers={customers}
+            models={models}
+            onAddCustomer={handleAddCustomer}
+            onAddModel={handleAddModel}
           />
         );
     }

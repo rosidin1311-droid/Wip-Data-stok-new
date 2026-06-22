@@ -7,6 +7,14 @@ interface PengaturanViewProps {
   records: ProductionRecord[];
   onImportRecords: (records: ProductionRecord[]) => void;
   onClearData: () => void;
+  customers: string[];
+  models: string[];
+  onAddCustomer: (name: string) => void;
+  onDeleteCustomer: (name: string) => void;
+  onAddModel: (name: string) => void;
+  onDeleteModel: (name: string) => void;
+  onResetCustomers: () => void;
+  onResetModels: () => void;
 }
 
 export default function PengaturanView({
@@ -14,11 +22,22 @@ export default function PengaturanView({
   onChangeSettings,
   records,
   onImportRecords,
-  onClearData
+  onClearData,
+  customers,
+  models,
+  onAddCustomer,
+  onDeleteCustomer,
+  onAddModel,
+  onDeleteModel,
+  onResetCustomers,
+  onResetModels
 }: PengaturanViewProps) {
   const [syncLoading, setSyncLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [newCustInput, setNewCustInput] = useState('');
+  const [newModelInput, setNewModelInput] = useState('');
 
   // Download JSON backup file
   const handleBackup = () => {
@@ -272,6 +291,148 @@ export default function PengaturanView({
           </button>
         </div>
 
+      </div>
+
+      {/* SECTION 4: MANAJEMEN DATA MASTER */}
+      <div className="bg-white dark:bg-[#09090f] border border-slate-100 dark:border-red-950/40 rounded-2xl p-5 shadow-sm space-y-5">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Manajemen Data Master</h2>
+          <span className="text-[9px] bg-red-500/15 text-red-600 border border-red-500/10 px-2 py-0.5 rounded-full font-bold">Lokal</span>
+        </div>
+
+        {/* CUSTOMER SECTION */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Daftar Customer ({customers.length})</span>
+            <button 
+              onClick={() => {
+                if(window.confirm('Reset daftar customer ke setelan standar harian?')) {
+                  onResetCustomers();
+                  showTempMsg('Daftar customer diatur ulang ke standar bawaan!');
+                }
+              }}
+              className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-bold"
+            >
+              Reset ke Bawaan
+            </button>
+          </div>
+
+          {/* List of Customers */}
+          <div className="max-h-36 overflow-y-auto border border-slate-100 dark:border-red-950/30 rounded-xl divide-y divide-slate-100 dark:divide-red-950/20 bg-slate-50/50 dark:bg-black/30 scrollbar-thin">
+            {customers.length === 0 ? (
+              <p className="p-3 text-[11px] text-slate-400 text-center">Tidak ada customer terdaftar. Tambahkan di bawah.</p>
+            ) : (
+              customers.map((cust) => (
+                <div key={cust} className="flex justify-between items-center p-2.5 hover:bg-slate-100 dark:hover:bg-red-950/10 transition">
+                  <span className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate pr-2">{cust}</span>
+                  <button 
+                    onClick={() => {
+                      onDeleteCustomer(cust);
+                      showTempMsg(`Customer "${cust}" berhasil dihapus dari master.`);
+                    }}
+                    className="p-1 text-slate-400 hover:text-red-600 rounded transition hover:bg-slate-100 dark:hover:bg-red-950/30 flex-shrink-0"
+                    title="Hapus Customer"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add Customer Input */}
+          <div className="flex space-x-2">
+            <input 
+              type="text"
+              placeholder="Tambah nama customer baru..."
+              value={newCustInput}
+              onChange={(e) => setNewCustInput(e.target.value)}
+              className="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none"
+            />
+            <button 
+              onClick={() => {
+                const val = newCustInput.trim();
+                if (val) {
+                  onAddCustomer(val);
+                  setNewCustInput('');
+                  showTempMsg(`Customer "${val}" berhasil didaftarkan!`);
+                }
+              }}
+              className="px-3 bg-red-650 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center border border-red-500/10 active:scale-95"
+            >
+              Tambah
+            </button>
+          </div>
+        </div>
+
+        {/* MODEL SECTION */}
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-red-950/20">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Daftar Model / Seri ({models.length})</span>
+            <button 
+              onClick={() => {
+                if(window.confirm('Reset daftar model ke setelan standar harian?')) {
+                  onResetModels();
+                  showTempMsg('Daftar model produksi diatur ulang ke standar bawaan!');
+                }
+              }}
+              className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-bold"
+            >
+              Reset ke Bawaan
+            </button>
+          </div>
+
+          {/* List of Models */}
+          <div className="max-h-36 overflow-y-auto border border-slate-100 dark:border-red-950/30 rounded-xl divide-y divide-slate-100 dark:divide-red-950/20 bg-slate-50/50 dark:bg-black/30 scrollbar-thin">
+            {models.length === 0 ? (
+              <p className="p-3 text-[11px] text-slate-400 text-center">Tidak ada model terdaftar. Tambahkan di bawah.</p>
+            ) : (
+              models.map((mdl) => (
+                <div key={mdl} className="flex justify-between items-center p-2.5 hover:bg-slate-100 dark:hover:bg-red-950/10 transition">
+                  <span className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate pr-2">{mdl}</span>
+                  <button 
+                    onClick={() => {
+                      onDeleteModel(mdl);
+                      showTempMsg(`Model "${mdl}" berhasil dihapus.`);
+                    }}
+                    className="p-1 text-slate-400 hover:text-red-650 rounded transition hover:bg-slate-100 dark:hover:bg-red-950/30 flex-shrink-0"
+                    title="Hapus Model"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add Model Input */}
+          <div className="flex space-x-2">
+            <input 
+              type="text"
+              placeholder="Tambah nama model baru..."
+              value={newModelInput}
+              onChange={(e) => setNewModelInput(e.target.value)}
+              className="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none"
+            />
+            <button 
+              onClick={() => {
+                const val = newModelInput.trim();
+                if (val) {
+                  onAddModel(val);
+                  setNewModelInput('');
+                  showTempMsg(`Model "${val}" berhasil didaftarkan!`);
+                }
+              }}
+              className="px-3 bg-red-650 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center border border-red-500/10 active:scale-95"
+            >
+              Tambah
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
