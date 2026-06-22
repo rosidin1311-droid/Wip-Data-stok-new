@@ -1,0 +1,22 @@
+{
+  "short_name": "Monitoring Produksi",
+  "name": "Monitoring Produksi WIP",
+  "icons": [
+    {
+      "src": "/app_logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/app_logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#050508",
+  "theme_color": "#991b1b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
