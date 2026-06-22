@@ -3,13 +3,13 @@
   "name": "Monitoring Produksi WIP",
   "icons": [
     {
-      "src": "/app_logo.png",
+      "src": "/app_logo.png?v=3",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     },
     {
-      "src": "/app_logo.png",
+      "src": "/app_logo.png?v=3",
       "type": "image/png",
       "sizes": "192x192"
     }
