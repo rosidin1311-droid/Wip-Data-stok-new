@@ -1,0 +1,6 @@
+{
+  "name": "WIP Production Tracker",
+  "description": "Aplikasi pencatatan input produksi harian dengan fitur panel input baru di dashboard, laporan WIP per shift, dashboard visual Data Stock, sisa saldo WIP, dan fitur ekspor CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
