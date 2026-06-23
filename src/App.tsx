@@ -297,7 +297,7 @@ export default function App() {
       case 'wip':
         return <LaporanWipView records={records} />;
       case 'stok':
-        return <DataStockView records={records} />;
+        return <DataStockView records={records} processes={processes} />;
       case 'input':
         return (
           <InputProduksiView 

@@ -5,6 +5,7 @@ import { MODEL_PROCESS_MAP } from '../initialData';
 interface DataStockViewProps {
   records: ProductionRecord[];
   onNavigateToInput?: () => void;
+  processes?: string[];
 }
 
 interface StockItem {
@@ -21,7 +22,7 @@ interface StockItem {
   totalNg: number;
 }
 
-export default function DataStockView({ records }: DataStockViewProps) {
+export default function DataStockView({ records, processes }: DataStockViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
 
@@ -45,10 +46,21 @@ export default function DataStockView({ records }: DataStockViewProps) {
       const groupRecords = groups[key];
 
       // Get defined process sequence for this model, or gather from records
-      let processSequence = MODEL_PROCESS_MAP[model] || [];
+      let processSequence = MODEL_PROCESS_MAP[model] ? [...MODEL_PROCESS_MAP[model]] : [];
+      if (processes && processes.length > 0) {
+        processSequence = processSequence.filter(p => 
+          processes.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+        );
+      }
+
       if (processSequence.length === 0) {
         // Fallback: gather all unique processes for this model from records and order them
-        const uniqueProcesses = Array.from(new Set(groupRecords.map(r => r.process)));
+        let uniqueProcesses = Array.from(new Set(groupRecords.map(r => r.process)));
+        if (processes && processes.length > 0) {
+          uniqueProcesses = uniqueProcesses.filter(p => 
+            processes.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+          );
+        }
         // Try to sort them by date-time first entered
         uniqueProcesses.sort((a, b) => {
           const firstA = groupRecords.find(r => r.process === a);

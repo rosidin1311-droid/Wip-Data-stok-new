@@ -112,22 +112,42 @@ export default function InputProduksiView({
 
   // Determine available processes dropdown based on currently inputted model
   const getAvailableProcesses = (): string[] => {
-    // If the model name is in our known map, return it. Otherwise offer system standard defaults.
+    // Current customizable lists
+    const activeMasterList = processes || DEFAULT_PROCESSES;
+
+    // If master list is empty, nothing should be allowed
+    if (activeMasterList.length === 0) {
+      return [];
+    }
+
     const normalizedModel = model.trim();
+    let modelPresetList: string[] = [];
+
+    // If the model name is in our known map, fetch it.
     if (MODEL_PROCESS_MAP[normalizedModel]) {
-      return MODEL_PROCESS_MAP[normalizedModel];
+      modelPresetList = MODEL_PROCESS_MAP[normalizedModel];
+    } else {
+      // Attempt string mapping checks if they typed part of it
+      const keyMatch = Object.keys(MODEL_PROCESS_MAP).find(k => 
+        k.toLowerCase() === normalizedModel.toLowerCase() ||
+        normalizedModel.toLowerCase().includes(k.toLowerCase())
+      );
+      if (keyMatch) {
+        modelPresetList = MODEL_PROCESS_MAP[keyMatch];
+      }
+    }
+
+    // Filter preset processes so that we ONLY include processes that STILL EXIST in the user's active master list!
+    if (modelPresetList.length > 0) {
+      const filtered = modelPresetList.filter(p => 
+        activeMasterList.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+      );
+      if (filtered.length > 0) {
+        return filtered;
+      }
     }
     
-    // Attempt string mapping checks if they typed part of it
-    const keyMatch = Object.keys(MODEL_PROCESS_MAP).find(k => 
-      k.toLowerCase() === normalizedModel.toLowerCase() ||
-      normalizedModel.toLowerCase().includes(k.toLowerCase())
-    );
-    if (keyMatch) {
-      return MODEL_PROCESS_MAP[keyMatch];
-    }
-    
-    return processes || DEFAULT_PROCESSES;
+    return activeMasterList;
   };
 
   // Safe process auto-select when the model is chosen
