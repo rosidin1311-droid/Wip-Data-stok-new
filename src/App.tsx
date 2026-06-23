@@ -9,7 +9,7 @@ import PengaturanView from './components/PengaturanView';
 import DataStockView from './components/DataStockView';
 import NeonLogo from './components/NeonLogo';
 import { ProductionRecord, AppSettings } from './types';
-import { INITIAL_RECORDS, INITIAL_CUSTOMERS, INITIAL_MODELS } from './initialData';
+import { INITIAL_RECORDS, INITIAL_CUSTOMERS, INITIAL_MODELS, DEFAULT_PROCESSES } from './initialData';
 
 export default function App() {
   // Initialize production records from localStorage, fallback to preset default values
@@ -51,20 +51,53 @@ export default function App() {
     return INITIAL_MODELS;
   });
 
+  // Initialize customizable processes list
+  const [processes, setProcesses] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wip_tracker_processes');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to parse processes master database:', err);
+      }
+    }
+    return DEFAULT_PROCESSES;
+  });
+
   // Initialize app settings from localStorage
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('wip_tracker_settings');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          autoBackupLocal: true,
+          autoBackupDownload: false,
+          ...parsed
+        };
       } catch (err) {
         console.error('Failed to parse settings from local storage:', err);
       }
     }
     return {
       theme: 'dark', // Default to Dark mode to show off the beautiful Neon theme by default
-      cloudSync: false
+      cloudSync: false,
+      autoBackupLocal: true,
+      autoBackupDownload: false
     };
+  });
+
+  // Initialize backup snapshots from localStorage
+  const [snapshots, setSnapshots] = useState<any[]>(() => {
+    const saved = localStorage.getItem('wip_tracker_snapshots');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to parse snapshots from local storage:', err);
+      }
+    }
+    return [];
   });
 
   // Current sub-screen route state
@@ -80,9 +113,18 @@ export default function App() {
     localStorage.setItem('wip_tracker_customers', JSON.stringify(customers));
   }, [customers]);
 
+  // Sync snapshots history data to localStorage
+  useEffect(() => {
+    localStorage.setItem('wip_tracker_snapshots', JSON.stringify(snapshots));
+  }, [snapshots]);
+
   useEffect(() => {
     localStorage.setItem('wip_tracker_models', JSON.stringify(models));
   }, [models]);
+
+  useEffect(() => {
+    localStorage.setItem('wip_tracker_processes', JSON.stringify(processes));
+  }, [processes]);
 
   // Sync settings config to localStorage
   useEffect(() => {
@@ -122,6 +164,79 @@ export default function App() {
     setModels(prev => prev.filter(m => m !== name));
   };
 
+  const handleAddProcess = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !processes.some(p => p.toLowerCase() === trimmed.toLowerCase())) {
+      setProcesses(prev => [...prev, trimmed]);
+    }
+  };
+
+  const handleDeleteProcess = (name: string) => {
+    setProcesses(prev => prev.filter(p => p !== name));
+  };
+
+  // Helper to trigger automatic local / file backups
+  const triggerAutoBackup = (updatedRecords: ProductionRecord[]) => {
+    // 1. Auto Local Snapshot
+    if (settings.autoBackupLocal !== false) {
+      const newSnapshot = {
+        id: `snap-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        recordCount: updatedRecords.length,
+        records: updatedRecords,
+        type: 'auto'
+      };
+      
+      setSnapshots(prev => {
+        const autos = prev.filter(s => s.type === 'auto');
+        const manuals = prev.filter(s => s.type === 'manual');
+        // Keep the last 10 auto-snapshots to avoid hogging localstorage
+        const updatedAutos = [newSnapshot, ...autos].slice(0, 10);
+        return [...updatedAutos, ...manuals];
+      });
+    }
+
+    // 2. Auto File Download
+    if (settings.autoBackupDownload) {
+      try {
+        const backupObj = {
+          app: 'WIP-Production-Tracker-Backup',
+          version: '1.0.0',
+          timestamp: new Date().toISOString(),
+          recordCount: updatedRecords.length,
+          records: updatedRecords
+        };
+        const fileContent = JSON.stringify(backupObj, null, 2);
+        const blob = new Blob([fileContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const timestampString = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = `WIP_AutoBackup_${timestampString}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Auto download offline backup failed:', e);
+      }
+    }
+  };
+
+  const handleCreateManualSnapshot = (note?: string) => {
+    const newSnapshot = {
+      id: `snap-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      recordCount: records.length,
+      records: records,
+      type: 'manual',
+      note: note || 'Salinan Manual'
+    };
+    setSnapshots(prev => [newSnapshot, ...prev]);
+  };
+
+  const handleDeleteSnapshot = (id: string) => {
+    setSnapshots(prev => prev.filter(s => s.id !== id));
+  };
+
   // Command handlers
   const handleAddRecord = (newRec: Omit<ProductionRecord, 'id' | 'timestamp'>) => {
     const recordWithId: ProductionRecord = {
@@ -130,19 +245,29 @@ export default function App() {
       timestamp: new Date().toISOString()
     };
     
-    setRecords(prev => [recordWithId, ...prev]);
+    setRecords(prev => {
+      const updated = [recordWithId, ...prev];
+      triggerAutoBackup(updated);
+      return updated;
+    });
   };
 
   const handleDeleteRecord = (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+    setRecords(prev => {
+      const updated = prev.filter(r => r.id !== id);
+      triggerAutoBackup(updated);
+      return updated;
+    });
   };
 
   const handleImportRecords = (importedList: ProductionRecord[]) => {
     setRecords(importedList);
+    triggerAutoBackup(importedList);
   };
 
   const handleClearData = () => {
     setRecords([]);
+    triggerAutoBackup([]);
   };
 
   const handleChangeSettings = (nextSettings: Partial<AppSettings>) => {
@@ -163,8 +288,10 @@ export default function App() {
             onNavigateToInput={() => setActiveTab('input')} 
             customers={customers}
             models={models}
+            processes={processes}
             onAddCustomer={handleAddCustomer}
             onAddModel={handleAddModel}
+            onAddProcess={handleAddProcess}
           />
         );
       case 'wip':
@@ -178,6 +305,7 @@ export default function App() {
             existingRecords={records} 
             customers={customers}
             models={models}
+            processes={processes}
             onAddCustomer={handleAddCustomer}
             onAddModel={handleAddModel}
           />
@@ -199,12 +327,19 @@ export default function App() {
             onClearData={handleClearData}
             customers={customers}
             models={models}
+            processes={processes}
             onAddCustomer={handleAddCustomer}
             onDeleteCustomer={handleDeleteCustomer}
             onAddModel={handleAddModel}
             onDeleteModel={handleDeleteModel}
+            onAddProcess={handleAddProcess}
+            onDeleteProcess={handleDeleteProcess}
             onResetCustomers={() => setCustomers(INITIAL_CUSTOMERS)}
             onResetModels={() => setModels(INITIAL_MODELS)}
+            onResetProcesses={() => setProcesses(DEFAULT_PROCESSES)}
+            snapshots={snapshots}
+            onCreateManualSnapshot={handleCreateManualSnapshot}
+            onDeleteSnapshot={handleDeleteSnapshot}
           />
         );
       default:
@@ -215,8 +350,10 @@ export default function App() {
             onNavigateToInput={() => setActiveTab('input')} 
             customers={customers}
             models={models}
+            processes={processes}
             onAddCustomer={handleAddCustomer}
             onAddModel={handleAddModel}
+            onAddProcess={handleAddProcess}
           />
         );
     }

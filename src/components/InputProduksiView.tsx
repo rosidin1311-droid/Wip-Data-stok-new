@@ -14,6 +14,7 @@ interface InputProduksiViewProps {
   isInline?: boolean;
   customers?: string[];
   models?: string[];
+  processes?: string[];
   onAddCustomer?: (name: string) => void;
   onAddModel?: (name: string) => void;
 }
@@ -24,6 +25,7 @@ export default function InputProduksiView({
   isInline = false,
   customers,
   models,
+  processes,
   onAddCustomer,
   onAddModel
 }: InputProduksiViewProps) {
@@ -125,16 +127,16 @@ export default function InputProduksiView({
       return MODEL_PROCESS_MAP[keyMatch];
     }
     
-    return DEFAULT_PROCESSES;
+    return processes || DEFAULT_PROCESSES;
   };
 
   // Safe process auto-select when the model is chosen
   useEffect(() => {
-    const processes = getAvailableProcesses();
-    if (processes.length > 0 && !processes.includes(selectedProcess)) {
-      setSelectedProcess(processes[0]);
+    const availableProcs = getAvailableProcesses();
+    if (availableProcs.length > 0 && !availableProcs.includes(selectedProcess)) {
+      setSelectedProcess(availableProcs[0]);
     }
-  }, [model]);
+  }, [model, processes]);
 
   // Trigger form submit and save
   const handleSubmit = (e: React.FormEvent) => {

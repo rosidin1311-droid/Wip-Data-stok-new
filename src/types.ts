@@ -18,6 +18,17 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   cloudSync: boolean;
   lastSyncTime?: string;
+  autoBackupLocal?: boolean; // Enable automatic local snapshots
+  autoBackupDownload?: boolean; // Optional: download file automatically on new record
+}
+
+export interface BackupSnapshot {
+  id: string;
+  timestamp: string; // ISO String
+  recordCount: number;
+  records: ProductionRecord[];
+  type: 'auto' | 'manual';
+  note?: string;
 }
 
 export interface ShiftSummary {

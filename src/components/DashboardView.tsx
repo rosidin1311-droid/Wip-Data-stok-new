@@ -9,8 +9,10 @@ interface DashboardViewProps {
   onNavigateToInput?: () => void;
   customers: string[];
   models: string[];
+  processes?: string[];
   onAddCustomer: (name: string) => void;
   onAddModel: (name: string) => void;
+  onAddProcess?: (name: string) => void;
 }
 
 export default function DashboardView({ 
@@ -19,8 +21,10 @@ export default function DashboardView({
   onNavigateToInput,
   customers,
   models,
+  processes,
   onAddCustomer,
-  onAddModel
+  onAddModel,
+  onAddProcess
 }: DashboardViewProps) {
   const [showInputForm, setShowInputForm] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
@@ -212,6 +216,7 @@ export default function DashboardView({
               isInline={true}
               customers={customers}
               models={models}
+              processes={processes}
               onAddCustomer={onAddCustomer}
               onAddModel={onAddModel}
             />

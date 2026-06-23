@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ProductionRecord, AppSettings } from '../types';
+import { ProductionRecord, AppSettings, BackupSnapshot } from '../types';
 
 interface PengaturanViewProps {
   settings: AppSettings;
@@ -9,12 +9,19 @@ interface PengaturanViewProps {
   onClearData: () => void;
   customers: string[];
   models: string[];
+  processes: string[];
   onAddCustomer: (name: string) => void;
   onDeleteCustomer: (name: string) => void;
   onAddModel: (name: string) => void;
   onDeleteModel: (name: string) => void;
+  onAddProcess: (name: string) => void;
+  onDeleteProcess: (name: string) => void;
   onResetCustomers: () => void;
   onResetModels: () => void;
+  onResetProcesses: () => void;
+  snapshots: BackupSnapshot[];
+  onCreateManualSnapshot: (note?: string) => void;
+  onDeleteSnapshot: (id: string) => void;
 }
 
 export default function PengaturanView({
@@ -25,12 +32,19 @@ export default function PengaturanView({
   onClearData,
   customers,
   models,
+  processes,
   onAddCustomer,
   onDeleteCustomer,
   onAddModel,
   onDeleteModel,
+  onAddProcess,
+  onDeleteProcess,
   onResetCustomers,
-  onResetModels
+  onResetModels,
+  onResetProcesses,
+  snapshots,
+  onCreateManualSnapshot,
+  onDeleteSnapshot
 }: PengaturanViewProps) {
   const [syncLoading, setSyncLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -38,6 +52,8 @@ export default function PengaturanView({
 
   const [newCustInput, setNewCustInput] = useState('');
   const [newModelInput, setNewModelInput] = useState('');
+  const [newProcessInput, setNewProcessInput] = useState('');
+  const [newSnapshotNote, setNewSnapshotNote] = useState('');
 
   // Download JSON backup file
   const handleBackup = () => {
@@ -225,11 +241,58 @@ export default function PengaturanView({
       <div className="bg-white dark:bg-[#09090f] border border-slate-100 dark:border-red-950/40 rounded-2xl p-5 shadow-sm space-y-4">
         <h2 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Manajemen Backup Data</h2>
         
+        {/* Toggle Opsi Auto Backup (Local & Download) */}
+        <div className="space-y-3 pb-3 border-b border-slate-100 dark:border-red-950/20">
+          <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Pengaturan Backup Otomatis</span>
+          
+          {/* Toggle 1: Auto Local Snapshot */}
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-black/25 p-2.5 rounded-xl border border-slate-100 dark:border-red-950/15">
+            <div className="max-w-[75%]">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Snapshot Otomatis Lokal</span>
+              <p className="text-[9px] text-slate-500 mt-0.5">Cadangkan riwayat otomatis ke memori saku browser setiap ada perubahan data</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChangeSettings({ autoBackupLocal: settings.autoBackupLocal === false ? true : false })}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                settings.autoBackupLocal !== false ? 'bg-red-600 shadow-[0_0_6px_rgba(239,68,68,0.3)]' : 'bg-slate-200 dark:bg-slate-800'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  settings.autoBackupLocal !== false ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Toggle 2: Auto Download JSON */}
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-black/25 p-2.5 rounded-xl border border-slate-100 dark:border-red-950/15">
+            <div className="max-w-[75%]">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Auto-Unduh Berkas (.JSON)</span>
+              <p className="text-[9px] text-slate-500 mt-0.5">Harap diperhatikan: Browser otomatis mendownload file JSON cadangan setiap ada input baru</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChangeSettings({ autoBackupDownload: !settings.autoBackupDownload })}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                settings.autoBackupDownload ? 'bg-red-600 shadow-[0_0_6px_rgba(239,68,68,0.3)]' : 'bg-slate-200 dark:bg-slate-800'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  settings.autoBackupDownload ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         {/* Row 1: Backup JSON */}
         <div className="space-y-2">
           <div>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Cadangkan Data (Backup)</span>
-            <p className="text-[10px] text-slate-500 mt-0.5">Ekspor berkas cadangan log harian Anda ke file JSON</p>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Ekspor File Cadangan Manual</span>
+            <p className="text-[10px] text-slate-500 mt-0.5">Simpan ekspor file cadangan log produksi harian Anda langsung ke disk perangkat Anda</p>
           </div>
           <button
             id="btn-backup"
@@ -245,9 +308,9 @@ export default function PengaturanView({
         </div>
 
         {/* Row 2: Restore JSON */}
-        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-red-950/20">
+        <div className="space-y-2 pt-2.5 border-t border-slate-100 dark:border-red-950/20">
           <div>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Puluhkan Data (Restore)</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Puluhkan via Berkas JSON</span>
             <p className="text-[10px] text-slate-500 mt-0.5">Unggah berkas CADANGAN JSON yang pernah diunduh untuk dipulihkan kembali</p>
           </div>
           <input
@@ -270,8 +333,139 @@ export default function PengaturanView({
           </button>
         </div>
 
+        {/* Row 2.5: Buat Snapshot Cadangan Manual */}
+        <div className="space-y-2 pt-2.5 border-t border-slate-100 dark:border-red-950/20">
+          <div>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Buat Snapshot Lokal Manual</span>
+            <p className="text-[10px] text-slate-500 mt-0.5">Ambil rekaman cadangan instan langsung ke penyimpanan saku local storage</p>
+          </div>
+          <div className="flex space-x-2">
+            <input 
+              type="text"
+              placeholder="Beri nama snapshot (misal: Pra Shift Siang)..."
+              value={newSnapshotNote}
+              onChange={(e) => setNewSnapshotNote(e.target.value)}
+              className="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none animate-pulse-once"
+            />
+            <button 
+              type="button"
+              onClick={() => {
+                const note = newSnapshotNote.trim();
+                onCreateManualSnapshot(note || 'Snapshot Manual');
+                setNewSnapshotNote('');
+                showTempMsg('Berhasil mengabadikan snapshot produksi manual!');
+              }}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 active:scale-95 border border-emerald-500/10 hover:shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:border-emerald-400"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Abadikan</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2.8: Daftar Snapshot Cadangan */}
+        <div className="space-y-3 pt-2.5 border-t border-slate-100 dark:border-red-950/20">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Daftar Snapshot Tersimpan ({snapshots.length})</span>
+            {snapshots.length > 0 && (
+              <button 
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Yakin ingin menghapus semua riwayat snapshot cadangan lokal?')) {
+                    snapshots.forEach(s => onDeleteSnapshot(s.id));
+                    showTempMsg('Seluruh history snapshot cadangan lokal dihapus!');
+                  }
+                }}
+                className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-bold"
+              >
+                Hapus Semua
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-48 overflow-y-auto border border-slate-100 dark:border-red-950/30 rounded-xl divide-y divide-slate-100 dark:divide-red-950/20 bg-slate-50/50 dark:bg-black/30 scrollbar-thin">
+            {snapshots.length === 0 ? (
+              <div className="p-4 text-center">
+                <p className="text-[11px] text-slate-450 dark:text-slate-400">Tidak ada snapshot tersimpan.</p>
+                <p className="text-[9px] text-slate-500 mt-1">Snapshot otomatis/manual harian akan tersimpan di sini demi mencegah kehilangan data produksi Anda.</p>
+              </div>
+            ) : (
+              snapshots.map((snap) => {
+                const dateStr = new Date(snap.timestamp).toLocaleDateString('id-ID', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                const isAuto = snap.type === 'auto';
+                
+                return (
+                  <div key={snap.id} className="p-2.5 hover:bg-slate-100 dark:hover:bg-red-950/10 transition space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-1.5">
+                        {isAuto ? (
+                          <span className="text-[8px] px-1.5 py-0.5 font-extrabold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/15 rounded-md uppercase">
+                            Auto
+                          </span>
+                        ) : (
+                          <span className="text-[8px] px-1.5 py-0.5 font-extrabold tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 rounded-md uppercase">
+                            Manual
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{dateStr}</span>
+                      </div>
+                      
+                      {/* Restore and Delete Actions */}
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Pulihkan data produksi dari cadangan (${snap.recordCount} records)? Data saat ini akan diganti.`)) {
+                              onImportRecords(snap.records);
+                              showTempMsg(`Berhasil memulihkan ${snap.recordCount} records dari snapshot!`);
+                            }
+                          }}
+                          className="px-1.5 py-0.5 bg-red-600 hover:bg-red-500 text-white rounded text-[9px] font-bold transition active:scale-95 flex items-center space-x-0.5 shadow-sm"
+                          title="Restore snapshot ini"
+                        >
+                          <span>Restore</span>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDeleteSnapshot(snap.id);
+                            showTempMsg('Snapshot dihapus.');
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-500 rounded transition hover:bg-slate-100 dark:hover:bg-red-950/30 shrink-0"
+                          title="Hapus snapshot ini"
+                        >
+                          <svg xmlns="http://www.w3.org/2050/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-705 dark:text-slate-200">
+                      <span className="truncate pr-2">
+                        {isAuto ? 'Snapshot Riwayat Otomatis' : (snap.note || 'Salinan Manual')}
+                      </span>
+                      <span className="text-[10px] text-red-500 dark:text-red-450 shrink-0 bg-red-500/10 px-2 py-0.5 rounded-full font-mono font-extrabold border border-red-500/20">
+                        {snap.recordCount} records
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
         {/* Row 3: Danger Zone - Reset database */}
-        <div className="space-y-2 pt-3 border-t border-red-100 dark:border-red-900/40">
+        <div className="space-y-2 pt-3 border-t border-red-105 dark:border-red-900/40">
           <div>
             <span className="text-xs font-bold text-red-650 dark:text-red-400">Danger Zone</span>
             <p className="text-[10px] text-slate-500 mt-0.5">Penghapusan seluruh riwayat produksi secara permanen dari browser</p>
@@ -425,6 +619,73 @@ export default function PengaturanView({
                   onAddModel(val);
                   setNewModelInput('');
                   showTempMsg(`Model "${val}" berhasil didaftarkan!`);
+                }
+              }}
+              className="px-3 bg-red-650 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center border border-red-500/10 active:scale-95"
+            >
+              Tambah
+            </button>
+          </div>
+        </div>
+
+        {/* PROCESS SECTION */}
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-red-950/20">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Daftar Proses / Tahapan ({processes.length})</span>
+            <button 
+              onClick={() => {
+                if(window.confirm('Reset daftar proses ke setelan standar harian?')) {
+                  onResetProcesses();
+                  showTempMsg('Daftar proses produksi diatur ulang ke standar bawaan!');
+                }
+              }}
+              className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-bold"
+            >
+              Reset ke Bawaan
+            </button>
+          </div>
+
+          {/* List of Processes */}
+          <div className="max-h-36 overflow-y-auto border border-slate-100 dark:border-red-950/30 rounded-xl divide-y divide-slate-100 dark:divide-red-950/20 bg-slate-50/50 dark:bg-black/30 scrollbar-thin">
+            {processes.length === 0 ? (
+              <p className="p-3 text-[11px] text-slate-400 text-center">Tidak ada proses terdaftar. Tambahkan di bawah.</p>
+            ) : (
+              processes.map((proc) => (
+                <div key={proc} className="flex justify-between items-center p-2.5 hover:bg-slate-100 dark:hover:bg-red-950/10 transition">
+                  <span className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate pr-2">{proc}</span>
+                  <button 
+                    onClick={() => {
+                      onDeleteProcess(proc);
+                      showTempMsg(`Proses "${proc}" berhasil dihapus.`);
+                    }}
+                    className="p-1 text-slate-400 hover:text-red-650 rounded transition hover:bg-slate-100 dark:hover:bg-red-950/30 flex-shrink-0"
+                    title="Hapus Proses"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add Process Input */}
+          <div className="flex space-x-2">
+            <input 
+              type="text"
+              placeholder="Tambah nama proses baru..."
+              value={newProcessInput}
+              onChange={(e) => setNewProcessInput(e.target.value)}
+              className="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none"
+            />
+            <button 
+              onClick={() => {
+                const val = newProcessInput.trim();
+                if (val) {
+                  onAddProcess(val);
+                  setNewProcessInput('');
+                  showTempMsg(`Proses "${val}" berhasil didaftarkan!`);
                 }
               }}
               className="px-3 bg-red-650 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center border border-red-500/10 active:scale-95"
