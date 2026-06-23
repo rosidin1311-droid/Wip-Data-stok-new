@@ -111,7 +111,7 @@ export default function DataStockView({ records, processes }: DataStockViewProps
       });
     });
 
-    return stockItems.filter(item => item.totalStock > 0);
+    return stockItems.filter(item => item.totalStock > 0 || item.processes.some(p => p.wipRemaining > 0));
   };
 
   const allItems = calculateStockData();

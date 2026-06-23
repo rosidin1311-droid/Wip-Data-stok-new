@@ -101,6 +101,100 @@ export default function LaporanWipView({ records, processes }: LaporanWipViewPro
   const statsSiang = calculateStats(siangRecords);
   const statsMalam = calculateStats(malamRecords);
 
+  // Calculate remaining WIP balance for each customer + model + item
+  const calculateWipData = () => {
+    const groups: { [key: string]: ProductionRecord[] } = {};
+    records.forEach(r => {
+      const key = `${r.customer}||${r.model}||${r.item || 'Generic Item'}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(r);
+    });
+
+    const wipItems: {
+      customer: string;
+      model: string;
+      item: string;
+      activeWipProcesses: { name: string; qty: number; qtyNg: number }[];
+    }[] = [];
+
+    Object.keys(groups).forEach(key => {
+      const [customer, model, item] = key.split('||');
+      const groupRecords = groups[key];
+
+      // Get defined process sequence for this model, or gather from records
+      let processSequence = MODEL_PROCESS_MAP[model] ? [...MODEL_PROCESS_MAP[model]] : [];
+      const activeMasterList = processes || [];
+      if (activeMasterList.length > 0) {
+        processSequence = processSequence.filter(p => 
+          activeMasterList.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+        );
+      }
+
+      if (processSequence.length === 0) {
+        let uniqueProcesses = Array.from(new Set(groupRecords.map(r => r.process)));
+        if (activeMasterList.length > 0) {
+          uniqueProcesses = uniqueProcesses.filter(p => 
+            activeMasterList.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+          );
+        }
+        uniqueProcesses.sort((a, b) => {
+          const firstA = groupRecords.find(r => r.process === a);
+          const firstB = groupRecords.find(r => r.process === b);
+          const timeA = firstA ? new Date(firstA.timestamp).getTime() : 0;
+          const timeB = firstB ? new Date(firstB.timestamp).getTime() : 0;
+          return timeA - timeB;
+        });
+        processSequence = uniqueProcesses;
+      }
+
+      if (processSequence.length === 0) return;
+
+      // Calculate total production at each stage
+      const stageTotals = processSequence.map((procName, idx) => {
+        const procRecords = groupRecords.filter(r => r.process.trim() === procName.trim());
+        const qtyOk = procRecords.reduce((sum, r) => sum + r.qtyOk, 0);
+        const qtyNg = procRecords.reduce((sum, r) => sum + r.qtyNg, 0);
+        return {
+          name: procName,
+          qtyOk,
+          qtyNg,
+          index: idx
+        };
+      });
+
+      // Calculate remaining WIP:
+      // Sisa WIP di Proses i = OK di Proses i - OK di Proses i+1
+      const activeWip: { name: string; qty: number; qtyNg: number }[] = [];
+      for (let i = 0; i < stageTotals.length - 1; i++) {
+        const currentQtyOk = stageTotals[i].qtyOk;
+        const nextQtyOk = stageTotals[i + 1].qtyOk;
+        const wipRemaining = Math.max(0, currentQtyOk - nextQtyOk);
+        if (wipRemaining > 0) {
+          activeWip.push({
+            name: stageTotals[i].name,
+            qty: wipRemaining,
+            qtyNg: stageTotals[i].qtyNg
+          });
+        }
+      }
+
+      if (activeWip.length > 0) {
+        wipItems.push({
+          customer,
+          model,
+          item,
+          activeWipProcesses: activeWip
+        });
+      }
+    });
+
+    return wipItems;
+  };
+
+  const activeWipList = calculateWipData();
+
   // Export functions
   const handleExportAll = () => {
     const wipOnly = records.filter(r => !isStokRecord(r));
@@ -323,6 +417,86 @@ export default function LaporanWipView({ records, processes }: LaporanWipViewPro
           </div>
         </div>
 
+      </div>
+
+      {/* DAFTAR SISA WIP AKTIF DI LANTAI PRODUKSI */}
+      <div id="active-wip-section" className="bg-slate-50 dark:bg-[#07070c] border border-slate-200/80 dark:border-red-950/25 rounded-2xl p-4.5 space-y-4 shadow-sm font-sans">
+        <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60 dark:border-red-950/20">
+          <div>
+            <h3 className="text-xs font-black text-slate-800 dark:text-yellow-400 uppercase tracking-widest">
+              Sisa WIP Aktif di Lantai Produksi
+            </h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Sisa balance WIP yang belum terproses ke tahap berikutnya</p>
+          </div>
+          <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full font-mono">
+            {activeWipList.length} Item
+          </span>
+        </div>
+
+        {/* Info card rule statement */}
+        <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 text-[10px] text-amber-600 dark:text-amber-400 space-y-1">
+          <p className="font-bold flex items-center space-x-1">
+            <span>ℹ️</span> <span>Logika Deduksi WIP Otomatis:</span>
+          </p>
+          <ul className="list-disc list-inside space-y-0.5 pl-1.5 leading-relaxed font-medium">
+            <li>Sisa WIP pada suatu proses berkurang otomatis saat item yang sama diproduksi pada proses selanjutnya (atau langsung masuk ke Stok).</li>
+            <li>Jumlah WIP bertambah otomatis jika ada proses baru pada tahap yang sama.</li>
+          </ul>
+        </div>
+
+        {activeWipList.length === 0 ? (
+          <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 dark:border-red-950/20 rounded-xl bg-white dark:bg-[#09090f]">
+            💤 Tidak ada sisa WIP aktif di proses menengah.
+            <p className="text-[10px] text-slate-400/80 mt-1">Semua item sudah diselesaikan atau belum diproduksi.</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
+            {activeWipList.map((item, idx) => (
+              <div 
+                key={`${item.customer}-${item.model}-${idx}`}
+                className="bg-white dark:bg-[#09090f] border border-slate-100 dark:border-red-950/25 rounded-xl p-3.5 shadow-xs space-y-2.5"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block">
+                      {item.customer}
+                    </span>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-yellow-400 font-mono">
+                      {item.model}
+                    </h4>
+                    <span className="text-[10px] text-slate-500 mt-0.5 font-medium block">
+                      Part: {item.item}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sub-process WIP list */}
+                <div className="space-y-1.5 font-mono text-[11px] pt-1.5 border-t border-slate-100 dark:border-red-950/15">
+                  {item.activeWipProcesses.map((proc) => (
+                    <div 
+                      key={proc.name}
+                      className="flex justify-between items-center py-1 px-2 bg-amber-500/5 dark:bg-amber-950/15 border border-amber-500/10 dark:border-amber-950/20 rounded"
+                    >
+                      <span className="text-slate-700 dark:text-slate-300 font-semibold truncate max-w-[180px]">
+                        {proc.name}
+                      </span>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        {proc.qtyNg > 0 && (
+                          <span className="text-[9px] text-rose-500 font-bold bg-rose-500/10 px-1 py-0.5 rounded">
+                            NG: {proc.qtyNg}
+                          </span>
+                        )}
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400">
+                          {proc.qty} Pcs WIP
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
