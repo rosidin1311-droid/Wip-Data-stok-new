@@ -1,18 +1,61 @@
 import React, { useState } from 'react';
 import { ProductionRecord, ShiftType } from '../types';
-import { exportToCSV } from '../initialData';
+import { exportToCSV, MODEL_PROCESS_MAP } from '../initialData';
 
 interface LaporanWipViewProps {
   records: ProductionRecord[];
+  processes?: string[];
 }
 
-export default function LaporanWipView({ records }: LaporanWipViewProps) {
+export default function LaporanWipView({ records, processes }: LaporanWipViewProps) {
   // Option: Show empty entries filter (On/Off based on User requested value > 0)
   const [filterGreaterThanZero, setFilterGreaterThanZero] = useState(false);
 
+  // Helper to check if record is finished "stok" process
+  const isStokRecord = (r: ProductionRecord): boolean => {
+    const activeMasterList = processes || [];
+    
+    // 1. Get process sequence for this model
+    let processSequence = MODEL_PROCESS_MAP[r.model] ? [...MODEL_PROCESS_MAP[r.model]] : [];
+    
+    // Filter with master list if active
+    if (activeMasterList.length > 0) {
+      processSequence = processSequence.filter(p => 
+        activeMasterList.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+      );
+    }
+    
+    // 2. If no preset sequence exists, build from history
+    if (processSequence.length === 0) {
+      const modelRecords = records.filter(item => item.model === r.model);
+      let uniqueProcesses = Array.from(new Set(modelRecords.map(item => item.process)));
+      if (activeMasterList.length > 0) {
+        uniqueProcesses = uniqueProcesses.filter(p => 
+          activeMasterList.some(ap => ap.trim().toLowerCase() === p.trim().toLowerCase())
+        );
+      }
+      uniqueProcesses.sort((a, b) => {
+        const firstA = modelRecords.find(item => item.process === a);
+        const firstB = modelRecords.find(item => item.process === b);
+        const timeA = firstA ? new Date(firstA.timestamp).getTime() : 0;
+        const timeB = firstB ? new Date(firstB.timestamp).getTime() : 0;
+        return timeA - timeB;
+      });
+      processSequence = uniqueProcesses;
+    }
+    
+    if (processSequence.length === 0) {
+      return false;
+    }
+    
+    // The final process in sequence is the "stok" process
+    const finalProcess = processSequence[processSequence.length - 1];
+    return r.process.trim().toLowerCase() === finalProcess.trim().toLowerCase();
+  };
+
   // Grouping records into shifts
   const getShiftRecords = (shiftName: ShiftType): ProductionRecord[] => {
-    let list = records.filter(r => r.shift === shiftName);
+    let list = records.filter(r => r.shift === shiftName && !isStokRecord(r));
     
     // Apply filter if "Hanya Jumlah > 0" is active
     if (filterGreaterThanZero) {
@@ -60,11 +103,12 @@ export default function LaporanWipView({ records }: LaporanWipViewProps) {
 
   // Export functions
   const handleExportAll = () => {
-    exportToCSV(records, filterGreaterThanZero);
+    const wipOnly = records.filter(r => !isStokRecord(r));
+    exportToCSV(wipOnly, filterGreaterThanZero);
   };
 
   const handleExportShiftOnly = (shift: ShiftType) => {
-    const shiftRecords = records.filter(r => r.shift === shift);
+    const shiftRecords = records.filter(r => r.shift === shift && !isStokRecord(r));
     exportToCSV(shiftRecords, filterGreaterThanZero);
   };
 
