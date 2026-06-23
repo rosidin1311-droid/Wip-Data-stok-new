@@ -333,7 +333,7 @@ export default function DashboardView({
                 </button>
               </div>
 
-              <div className="overflow-y-auto pr-1 flex-grow scrollbar-thin">
+              <div className="overflow-y-auto pr-1 flex-grow scrollbar-thin font-sans">
                 <InputProduksiView 
                   onAddRecord={(newRec) => {
                     onAddRecord(newRec);
@@ -344,6 +344,7 @@ export default function DashboardView({
                   isInline={true}
                   customers={customers}
                   models={models}
+                  processes={processes}
                   onAddCustomer={onAddCustomer}
                   onAddModel={onAddModel}
                 />
